@@ -1,0 +1,71 @@
+import streamlit as st
+from huggingface_hub import Repository
+import data_func
+import pandas as pd
+from data_func import DATA_FILE,HF_TOKEN,DATASET_REPO_URL
+
+st.title("Öğrenci Notları")
+
+col1, col2 = st.columns(2)
+
+with col1:
+    ogretmen = st.text_input("Ogretmen kodu:",key=12)
+with col2:
+    class_code = st.text_input("Sınıf Kodu:",key=13,value=10)
+class_code = int(class_code)
+DATA_FILENAME = f"{ogretmen}.csv"
+DATA_FILENAME = str(DATA_FILENAME)
+
+
+@st.cache
+def convert_df_to_csv(df):
+  # IMPORTANT: Cache the conversion to prevent computation on every rerun
+  return df.to_csv().encode('utf-8')
+
+def screen_analysis_main():
+    
+    if st.button("Ogretmen koduna gore oku",key=26):
+        try:
+            repo, repo_df = data_func.pull_read()
+            repo.git_pull()
+            filtered_df = repo_df[(repo_df['sinif_kodu'] == class_code)]#& (repo_df['not'] > 70)
+            
+            st.dataframe(filtered_df)
+     
+            st.download_button(label="Yuakrdaki CSV Dosyasini indir",data=convert_df_to_csv(filtered_df),
+                               file_name='large_df.csv',mime='text/csv',)   
+            filtered_df["notu"] = filtered_df["notu"].astype(int)
+            not_ortalamasi = filtered_df["notu"].mean()
+            
+            st.write("Sinifin not ortalamasi:",not_ortalamasi)
+            numbers_list = filtered_df['yanlis_sorulari'].str.split(',', expand=True).stack().reset_index(drop=True)
+            numbers_list = numbers_list.astype(int)
+            freq = numbers_list.value_counts()
+            freq = freq.sort_index()
+            
+            list1= []
+            list2= []
+            for i in range(1,21):
+                try:
+                    list1.append(i)
+                    list2.append([freq[i]])
+                except KeyError:
+                    
+                    list2.append(0)
+           
+            dict_data = {}
+            for i in range(len(list1)):
+                dict_data[list1[i]] = list2[i]
+
+            df = pd.DataFrame(dict_data)
+            
+            st.subheader("Yanlis yapilan sorularin grafkisel gosterimi")
+            st.bar_chart(df.T)
+                  
+        except FileNotFoundError :
+            st.write("Yanlis ad")
+        
+    
+#python -m streamlit run app.py
+if __name__ == "__main__":
+    screen_analysis_main()
