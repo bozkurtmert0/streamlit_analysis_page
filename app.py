@@ -27,7 +27,7 @@ def screen_analysis_main():
     if st.button("Ogretmen koduna gore oku",key=26):
         try:
             repo, repo_df = data_func.pull_read()
-            repo.git_pull()
+            #repo.git_pull()
             filtered_df = repo_df[(repo_df['sinif_kodu'] == class_code)]#& (repo_df['not'] > 70)
             
             st.dataframe(filtered_df)
