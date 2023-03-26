@@ -1,39 +1,56 @@
 import streamlit as st
 from huggingface_hub import Repository
-import data_func
 import pandas as pd
-from data_func import DATA_FILE,HF_TOKEN,DATASET_REPO_URL
+import os
+
 
 st.title("Öğrenci Notları")
 
 col1, col2 = st.columns(2)
 
 with col1:
-    ogretmen = st.text_input("Ogretmen kodu:",key=12)
+    teacher_code = st.text_input("Ogretmen kodu:",key=12)
 with col2:
-    class_code = st.text_input("Sınıf Kodu:",key=13,value=10)
-class_code = int(class_code)
-DATA_FILENAME = f"{ogretmen}.csv"
+    exam_code = st.text_input("Sınav Kodu:",key=13,value=10)
+
+
+exam_code = int(exam_code)
+teacher_code = str(teacher_code)
+DATA_FILENAME = f"{teacher_code}.csv"
 DATA_FILENAME = str(DATA_FILENAME)
 
+DATASET_REPO_URL = "https://huggingface.co/datasets/mertbozkurt/school_data"
+DATA_FILE = os.path.join("data", DATA_FILENAME)
+HF_TOKEN = "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"
 
+def pull_read():
+    
+    repo = Repository(
+        local_dir="data", clone_from=DATASET_REPO_URL, use_auth_token=HF_TOKEN
+        )
+    
+    with open(DATA_FILE) as csvfile:
+        df = pd.read_csv(csvfile) 
+        df = pd.DataFrame(df)
+    
+    return repo, df
 @st.cache
 def convert_df_to_csv(df):
-  # IMPORTANT: Cache the conversion to prevent computation on every rerun
   return df.to_csv().encode('utf-8')
+
 
 def screen_analysis_main():
     
     if st.button("Ogretmen koduna gore oku",key=26):
         try:
-            repo, repo_df = data_func.pull_read()
-            #repo.git_pull()
-            filtered_df = repo_df[(repo_df['sinif_kodu'] == class_code)]#& (repo_df['not'] > 70)
+            repo, repo_df = pull_read()
+            repo.git_pull()
+            filtered_df = repo_df[(repo_df['sinav_kodu'] == exam_code)]#& (repo_df['not'] > 70)
             
             st.dataframe(filtered_df)
      
-            st.download_button(label="Yuakrdaki CSV Dosyasini indir",data=convert_df_to_csv(filtered_df),
-                               file_name='large_df.csv',mime='text/csv',)   
+            st.download_button(label="Yukaridaki CSV Dosyasini indir",data=convert_df_to_csv(filtered_df),
+                               file_name='result.csv',mime='text/csv',)   
             filtered_df["notu"] = filtered_df["notu"].astype(int)
             not_ortalamasi = filtered_df["notu"].mean()
             
@@ -60,10 +77,10 @@ def screen_analysis_main():
             df = pd.DataFrame(dict_data)
             
             st.subheader("Yanlis yapilan sorularin grafkisel gosterimi")
-            st.bar_chart(df.T)
+            st.bar_chart(df.T,width=0,height=0)
                   
         except FileNotFoundError :
-            st.write("Yanlis ad")
+            st.write("Yanlis ogretmen kodu")
         
     
 #python -m streamlit run app.py
